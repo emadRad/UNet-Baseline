@@ -53,7 +53,8 @@ class DecoderBlock(nn.Module):
         self.merge_mode = merge_mode
         self.up_mode = up_mode
 
-        self.upconv = up_conv(self.in_channels, self.out_channels, kernel_size=2, mode=self.up_mode)
+        self.upconv2x2 = up_conv(self.in_channels, self.out_channels, kernel_size=2, mode=self.up_mode)
+        self.upconv3x3 = up_conv(self.in_channels, self.out_channels, kernel_size=3, mode=self.up_mode)
 
         if self.merge_mode == 'concat':
             # number of input channel for conv1 is twice the out channels
@@ -65,8 +66,12 @@ class DecoderBlock(nn.Module):
         self.conv2 = conv(self.out_channels, self.out_channels, kernel_size)
 
     def forward(self, from_encoder, to_decoder):
-        to_decoder = self.upconv(to_decoder)
-        print(from_encoder.shape, to_decoder.shape)
+
+        if from_encoder.shape[2] % 2 == 0:
+            to_decoder = self.upconv2x2(to_decoder)
+        else:
+            to_decoder = self.upconv3x3(to_decoder)
+
         if self.merge_mode == 'concat':
             # concating by channel
             x = torch.cat((to_decoder, from_encoder), 1)
@@ -134,8 +139,8 @@ class UNet(nn.Module):
         self.encoder_module = nn.ModuleList(self.encoder_path)
         self.decoder_module = nn.ModuleList(self.decoder_path)
 
-        # print(self.encoder_module)
-        # print(self.decoder_module)
+        print(self.encoder_module)
+        print(self.decoder_module)
 
 
     def forward(self, x):
@@ -143,7 +148,6 @@ class UNet(nn.Module):
 
         for i, module in enumerate(self.encoder_module):
             x, before_pool = module(x)
-            print(x.shape, before_pool.shape)
             encoder_outs.append(before_pool)
 
         for i, module in enumerate(self.decoder_module):
@@ -155,9 +159,6 @@ class UNet(nn.Module):
 
 
 if __name__ == "__main__":
-    x = torch.rand((1, 1, 572, 572))
-    conv1 = conv(1, 512, kernel_size=3, padding=0)
-    print(conv1(x).shape)
 
     model = UNet(3, in_channels=1, depth=5, merge_mode='concat')
     model.apply(weight_init)
