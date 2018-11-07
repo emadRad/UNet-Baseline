@@ -87,7 +87,7 @@ class DecoderBlock(nn.Module):
 class UNet(nn.Module):
 
     def __init__(self, num_classes, in_channels=3, depth=5,
-                 start_filt_num=64, up_mode='transpose', merge_mode='concat'):
+                 start_filt_num=64, filt_num_factor=2, up_mode='transpose', merge_mode='concat'):
         super(UNet, self).__init__()
 
         if up_mode in ('transpose', 'upsample'):
@@ -109,6 +109,7 @@ class UNet(nn.Module):
         self.start_filt_num = start_filt_num
         self.depth = depth
         self.num_classes = num_classes
+        self.filt_num_factor = filt_num_factor
 
         self.encoder_path = []
         self.decoder_path = []
@@ -118,7 +119,7 @@ class UNet(nn.Module):
         # encoder path
         for i in range(depth):
             in_filters = out_filters
-            out_filters = self.start_filt_num*(2**i)
+            out_filters = self.start_filt_num*(self.filt_num_factor**i)
             pooling = True if i < depth-1 else False
             enc_block = EncoderBlock(in_filters, out_filters, pooling=pooling)
             self.encoder_path.append(enc_block)
@@ -126,7 +127,7 @@ class UNet(nn.Module):
         # decoder path
         for i in range(depth-1):
             in_filters = out_filters
-            out_filters = in_filters // 2
+            out_filters = in_filters // filt_num_factor
             decoder_block = DecoderBlock(in_filters, out_filters,
                                          merge_mode=self.merge_mode,
                                          up_mode=self.up_mode)
@@ -141,7 +142,6 @@ class UNet(nn.Module):
 
         print(self.encoder_module)
         print(self.decoder_module)
-
 
     def forward(self, x):
         encoder_outs = []
@@ -160,7 +160,7 @@ class UNet(nn.Module):
 
 if __name__ == "__main__":
 
-    model = UNet(3, in_channels=1, depth=5, merge_mode='concat')
+    model = UNet(3, in_channels=1, depth=5, filt_num_factor=2, merge_mode='concat')
     model.apply(weight_init)
     cuda = torch.cuda.is_available()
     x = Variable(torch.rand(1, 1, 572, 572))
