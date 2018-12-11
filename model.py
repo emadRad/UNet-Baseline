@@ -140,8 +140,9 @@ class UNet(nn.Module):
         self.encoder_module = nn.ModuleList(self.encoder_path)
         self.decoder_module = nn.ModuleList(self.decoder_path)
 
-        print(self.encoder_module)
-        print(self.decoder_module)
+        initialize_weights(self)
+        # print(self.encoder_module)
+        # print(self.decoder_module)
 
     def forward(self, x):
         encoder_outs = []
@@ -160,10 +161,11 @@ class UNet(nn.Module):
 
 if __name__ == "__main__":
 
-    model = UNet(3, in_channels=1, depth=5, filt_num_factor=2, merge_mode='concat')
+    model = UNet(num_classes=3, in_channels=1, depth=5, filt_num_factor=2, merge_mode='concat')
+
     model.apply(weight_init)
     cuda = torch.cuda.is_available()
-    x = Variable(torch.rand(1, 1, 572, 572))
+    x = Variable(torch.rand(1, 1, 584, 584))
     if cuda:
         model.cuda()
         x = x.cuda()

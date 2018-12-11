@@ -1,0 +1,5 @@
+tensorflow-gpu
+torch
+torchvision
+scipy
+numpy

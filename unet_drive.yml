@@ -1,0 +1,36 @@
+
+# model configuration
+model:
+    arch: unet
+    n_classes: 3
+    in_channels: 3
+    depth: 5
+    n_start_filters: 64
+    filter_num_scale: 2
+    up_mode: transpose
+    merge_mode: concat
+
+data:
+    dataset: drive
+    path: ../datasets/
+training:
+    n_workers: 4
+    n_epochs: 50
+    batch_size: 4
+    loss:
+        name: combined_loss
+
+    optimizer:
+        name: adam
+        lr: 0.001
+
+    augmentations:
+        hflip: 0.5
+        rotate: 90
+
+#    lr_scheduler:
+#        name: step_lr
+#        step_size: 10
+#        gamma: 0.05
+
+#     resume: <path_to_checkpoint>
