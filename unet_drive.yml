@@ -7,24 +7,25 @@ model:
     depth: 5
     n_start_filters: 64
     filter_num_scale: 2
-    up_mode: transpose
-    merge_mode: concat
+    up_mode: transpose  # or upsample
+    merge_mode: concat  # or add
 
 data:
     dataset: drive
-    path: ../datasets/
+    path: ../datasets/  # the path to where the DRIVE folder is located
 training:
     n_workers: 4
     n_epochs: 50
     batch_size: 4
     loss:
-        name: combined_loss
+        name: combined_loss # cross_entropy , dice_loss,
+                            # create the weight tensor in train.py
 
     optimizer:
-        name: adam
+        name: adam  # sgd
         lr: 0.001
 
-    augmentations:
+    augmentations: #
         hflip: 0.5
         rotate: 90
 
@@ -32,5 +33,3 @@ training:
 #        name: step_lr
 #        step_size: 10
 #        gamma: 0.05
-
-#     resume: <path_to_checkpoint>

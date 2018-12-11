@@ -1,6 +1,9 @@
 .idea/
 __pycache__/
 
+logs/
+samples/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
