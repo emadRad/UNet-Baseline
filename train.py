@@ -3,9 +3,6 @@ import argparse
 import yaml
 import warnings
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torchvision.utils import save_image
@@ -13,12 +10,12 @@ from torchvision.utils import save_image
 from logger import Logger
 
 
-from model import UNet
-from ops import Colorize
+from models.networks import UNet
 from augmentations import *
 from loss import *
 from dataloaders import get_dataloader
 from optimizers import get_optimizer, get_lr_scheduler
+from utils import plot_predictions, plot_confusion_matrix
 
 from sklearn.metrics import confusion_matrix
 
@@ -59,6 +56,8 @@ def train(config):
                  filt_num_factor=config['model']['filter_num_scale'],
                  merge_mode=config['model']['merge_mode']).to(device)
 
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
 
     loss_weight = torch.ones(n_classes)
     loss_weight[0] = 0.6
@@ -85,7 +84,6 @@ def train(config):
     epochs = config['training']['n_epochs']
     logger = Logger("./logs")
     iter = 0
-    color_transform = Colorize()
 
 
     for epoch in range(1, epochs + 1):
@@ -128,13 +126,11 @@ def train(config):
         epoch_avg_dice = sum(epoch_dice_loss) / len(epoch_dice_loss)
         epoch_avg_ce = sum(epoch_ce_loss) / len(epoch_ce_loss)
 
-
         model.eval()
 
-        seg_maps = []
         cnf_matrix_validation = np.zeros((n_classes, n_classes))
 
-        for img, lbls, _  in testing_loader:
+        for idx, (img, lbls, _)  in enumerate(testing_loader):
             img = Variable(img.to(device))
             lbls = Variable(lbls.to(device))
 
@@ -144,36 +140,30 @@ def train(config):
 
             cnf_matrix_validation += confusion_matrix(preds.cpu().view(-1).numpy(), lbls.cpu().view(-1).numpy())
 
+            if idx == 2:
+                plt_title = 'Train Results Epoch ' + str(epoch)
 
-            seg_maps.append((lbls.cpu().squeeze(), preds.cpu().detach()))
+                file_save_name = os.path.join("samples", 'Epoch_' + str(epoch) + '_Train_Predictions.pdf')
+                classes = torch.unique(lbls).cpu().numpy()
+                plot_predictions(img, lbls, preds, plt_title, file_save_name)
 
 
         nTotal = len(testing_loader)
 
         cnf_matrix = cnf_matrix_validation / nTotal
 
+        save_name = os.path.join("samples", 'Epoch_' + str(epoch) + '_Validation_CM.pdf')
+        plot_confusion_matrix(cnf_matrix, classes, file_save_name=save_name)
+
         dice_score = 2 * np.diag(cnf_matrix) / (cnf_matrix.sum(axis=1) + cnf_matrix.sum(axis=0))
-
-        iu = np.diag(cnf_matrix) / (cnf_matrix.sum(axis=1) + cnf_matrix.sum(axis=0) - np.diag(cnf_matrix))
-
-        iu_mean = np.mean(iu)
         dice_score = np.mean(dice_score)
 
-        lbl, pred = random.choice(seg_maps)
-        lbl, pred = lbl[0, :, :], pred[0, :, :]
-        img_to_save = torch.cat((lbl, pred), dim=1)
-
-
-        img_to_save = color_transform(img_to_save.unsqueeze(0))
-        save_image(img_to_save, "samples/{}_lbl_vs_Pred.png".format(iter))
-
-        out_msg = '[ Epoch {}/{} ] [ Total Loss: {:.4f} ] [Dice Loss: {:.4f}] [CE Loss: {:.4f}] [Avg Dice Score: {:.4f}] [ Mean IoU: {:.4f} ]'.format(
+        out_msg = '[ Epoch {}/{} ] [ Total Loss: {:.4f} ] [Dice Loss: {:.4f}] [CE Loss: {:.4f}] [Avg Dice Score: {:.4f}]'.format(
             epoch, epochs,
             epoch_avg_loss,
             epoch_avg_dice,
             epoch_avg_ce,
-            dice_score,
-            iu_mean
+            dice_score
         )
         print(out_msg)
 
@@ -194,7 +184,6 @@ if __name__ == "__main__":
 
     else:
         raise FileNotFoundError("Config file {} doesn't exist!!".format(args.config))
-
 
 
     train(cfg)

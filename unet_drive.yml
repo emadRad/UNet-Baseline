@@ -16,7 +16,7 @@ data:
 training:
     n_workers: 4
     n_epochs: 50
-    batch_size: 4
+    batch_size: 3
     loss:
         name: combined_loss # cross_entropy , dice_loss,
                             # create the weight tensor in train.py
